@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIKLMP - Video Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to AIKLMP Video Generator</h1>
+
+        <!-- Form for video generation -->
+        <form id="video-form">
+            <label for="prompt">Enter Video Prompt:</label>
+            <input type="text" id="prompt" name="prompt" required placeholder="e.g., AI Generated Nature Video">
+
+            <label for="video_type">Select Video Type:</label>
+            <select name="video_type" id="video_type" required>
+                <option value="short">Short Video</option>
+                <option value="long">Long Video</option>
+            </select>
+
+            <button type="submit">Generate Video</button>
+        </form>
+
+        <!-- Status message area -->
+        <div id="status" class="status-message">
+            <p id="status-text"></p>
+        </div>
+
+        <!-- Video link to download (visible after generation) -->
+        <div id="video-link" style="display: none;">
+            <a href="" id="download-link" target="_blank">Download Video</a>
+        </div>
+    </div>
+
+    <script>
+        // Handle form submission
+        document.getElementById("video-form").addEventListener("submit", async function(event) {
+            event.preventDefault();  // Prevent default form submission
+
+            // Get form data
+            const prompt = document.getElementById("prompt").value;
+            const videoType = document.getElementById("video_type").value;
+
+            // Show loading message
+            document.getElementById("status-text").textContent = "Generating video... Please wait.";
+            document.getElementById("status").style.display = "block";
+            document.getElementById("video-link").style.display = "none";  // Hide previous video link
+
+            try {
+                // Make the POST request to the backend
+                const response = await fetch("/generate-video/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ prompt: prompt, video_type: videoType })
+                });
+
+                // Check if the request was successful
+                if (response.ok) {
+                    const data = await response.json();
+                    const taskId = data.task_id;
+
+                    // Update the status message
+                    document.getElementById("status-text").textContent = `Video generation started. Task ID: ${taskId}.`;
+
+                    // Check task status after a delay (polling)
+                    checkTaskStatus(taskId);
+                } else {
+                    throw new Error("Failed to start video generation.");
+                }
+            } catch (error) {
+                document.getElementById("status-text").textContent = "Error: " + error.message;
+            }
+        });
+
+        // Function to check the task status
+        async function checkTaskStatus(taskId) {
+            try {
+                const response = await fetch(`/task-status/${taskId}`);
+                const data = await response.json();
+
+                if (data.status === "SUCCESS") {
+                    // Show the video download link when the task is completed
+                    document.getElementById("status-text").textContent = "Video generation completed.";
+                    const videoPath = data.result;  // Assume that the video path is returned
+                    document.getElementById("video-link").style.display = "block";
+                    document.getElementById("download-link").href = videoPath;  // Link to download the video
+                } else {
+                    // Poll again after a delay (for ongoing tasks)
+                    setTimeout(() => checkTaskStatus(taskId), 5000);
+                }
+            } catch (error) {
+                document.getElementById("status-text").textContent = "Error: Unable to check task status.";
+            }
+        }
+    </script>
+</body>
+</html>
