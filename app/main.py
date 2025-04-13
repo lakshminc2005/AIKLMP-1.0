@@ -4,6 +4,16 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from pathlib import Path
 from .tasks import generate_video  # Import Celery task
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or add specific Netlify domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app = FastAPI()
 
