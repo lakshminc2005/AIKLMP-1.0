@@ -1,44 +1,54 @@
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
-from fastapi import Request
-from pathlib import Path
-from .tasks import generate_video  # Import Celery task
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+import os
+from app.tasks import generate_video_task
 
+# Load environment variables
+REDIS_URL = os.getenv("REDIS_URL")
+VIDEO_OUTPUT = os.getenv("VIDEO_OUTPUT", "generated_videos")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
+
+# FastAPI app initialization
+app = FastAPI(title="AIKLMP - AI Video Generator")
+
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or add specific Netlify domain
+    allow_origins=[origin.strip() for origin in ALLOWED_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Serve static video files
+app.mount("/videos", StaticFiles(directory=VIDEO_OUTPUT), name="videos")
 
-app = FastAPI()
+# Request model
+class VideoRequest(BaseModel):
+    prompt: str
+    video_type: str  # "short" or "long"
 
-# Initialize Jinja2 templates
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+# Root route
+@app.get("/")
+def root():
+    return {"message": "AIKLMP backend is running 🎥"}
 
+# Endpoint to trigger video generation
+@app.post("/generate/")
+async def generate_video(request: VideoRequest, background_tasks: BackgroundTasks):
+    video_id = generate_video_task.delay(request.prompt, request.video_type)
+    return {
+        "message": "Video generation started",
+        "task_id": str(video_id),
+        "status_check_url": f"/status/{video_id}"
+    }
 
-# Route to render the home page (frontend)
-@app.get("/", response_class=JSONResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-
-# Route to trigger video generation (POST request)
-@app.post("/generate-video/")
-async def generate_video_task(request: Request, prompt: str, video_type: str):
-    # Start the video generation task asynchronously using Celery
-    task = generate_video.apply_async(args=[prompt, video_type])
-    
-    # Return task ID to the frontend so the user can track progress
-    return JSONResponse(content={"task_id": task.id}, status_code=202)
-
-
-# Route to fetch task status (optional, you can remove it if you don't need it)
-@app.get("/task-status/{task_id}", response_class=JSONResponse)
-async def get_task_status(task_id: str):
-    task = generate_video.AsyncResult(task_id)
-    return JSONResponse(content={"status": task.status, "result": task.result})
+# Status check (mock/simple version — optional)
+@app.get("/status/{task_id}")
+async def get_status(task_id: str):
+    return {
+        "task_id": task_id,
+        "status": "running or completed (mock)"
+    }
