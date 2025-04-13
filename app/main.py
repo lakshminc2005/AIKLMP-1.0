@@ -3,7 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
-from app.tasks import generate_video  # Import the new video generation function
+from app.tasks import generate_video 
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"message": "AIKLMP is running 🎥"}
+# Import the new video generation function
 
 # Environment variables for setup
 VIDEO_OUTPUT = os.getenv("VIDEO_OUTPUT", "generated_videos")
