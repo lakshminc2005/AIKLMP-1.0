@@ -1,8 +1,5 @@
 fastapi
 uvicorn
-celery
-redis
-python-dotenv
-moviepy
-Pillow
-jinja2
+pydantic
+moviepy  # For video processing (if you are using it)
+python-dotenv  # For loading environment variables
