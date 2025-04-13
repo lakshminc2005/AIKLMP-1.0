@@ -28,7 +28,7 @@ app.add_middleware(
 )
 
 # Mount static files (CSS, JS, Videos)
-app.mount("/static", StaticFiles(directory="static/css"), name="static/css")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/videos", StaticFiles(directory=VIDEO_OUTPUT), name="videos")
 
 # Set up Jinja2 templates for rendering HTML
